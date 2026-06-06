@@ -10,7 +10,7 @@ class TransformerConfig:
     dropout: float = 0.1
     label_smoothing: float = 0.1
 
-    vocab_size: int = 37000
+    vocab_size: int = 10_000
     pad_id: int = 0
     bos_id: int = 1
     eos_id: int = 2
@@ -24,9 +24,9 @@ class TransformerConfig:
     adam_beta2: float = 0.98
     adam_eps: float = 1e-9
 
-    # training
-    total_steps: int = 100_000
-    tokens_per_batch: int = 25_000
+    # training (IWSLT2017 DE-EN scale)
+    total_steps: int = 30_000
+    tokens_per_batch: int = 12_000
 
     # inference
     beam_size: int = 4

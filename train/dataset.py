@@ -10,7 +10,14 @@ SPM_PATH = Path(__file__).parents[1] / "data" / "bpe.model"
 CACHE_DIR = Path(__file__).parents[1] / "data" / "cache"
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
-class WMT14Dataset(Dataset):
+# IWSLT2017 DE→EN: source = de, target = en.
+HF_DATASET = "iwslt2017"
+HF_CONFIG = "iwslt2017-de-en"
+SRC_LANG = "de"
+TGT_LANG = "en"
+
+
+class IWSLTDataset(Dataset):
     def __init__(self, split, max_len=128, sp_path=SPM_PATH, use_cache=True) -> None:
         self.sp = spm.SentencePieceProcessor(model_file=str(sp_path))
         self.max_len = max_len
@@ -19,22 +26,20 @@ class WMT14Dataset(Dataset):
 
         cache_path = self._cache_path(split, max_len, sp_path)
         if use_cache and cache_path.exists():
-            print(f"Loaading from cache path {cache_path}")
+            print(f"Loading from cache path {cache_path}")
             with open(cache_path, "rb") as f:
                 self.pairs = pickle.load(f)
-            print(f"    {len(self.pairs)} pairs")
+            print(f"    {len(self.pairs):,} pairs")
             return
 
-
-        ds = load_dataset("wmt14", "de-en", split=split)
+        ds = load_dataset(HF_DATASET, HF_CONFIG, split=split)
         self.pairs = []
         for i, ex in enumerate(ds):
-            src_ids = self.sp.encode(ex["translation"]["en"])
-
-            tgt_ids = self.sp.encode(ex["translation"]["de"])
-            if 0 < len(src_ids) <= max_len and 0 < len(tgt_ids) < max_len - 1:
+            src_ids = self.sp.encode(ex["translation"][SRC_LANG])
+            tgt_ids = self.sp.encode(ex["translation"][TGT_LANG])
+            if 0 < len(src_ids) <= max_len and 0 < len(tgt_ids) <= max_len - 1:
                 self.pairs.append((src_ids, tgt_ids))
-            if (i+1) % 500_00 == 0:
+            if (i + 1) % 50_000 == 0:
                 print(f"    processed {i + 1:,}")
 
         if use_cache:
@@ -46,24 +51,25 @@ class WMT14Dataset(Dataset):
     def _cache_path(split, max_len, sp_path):
         sp_path = Path(sp_path)
         stat = sp_path.stat()
-        key = f"{split}|{max_len}|{sp_path.name}|{int(stat.st_mtime)|{stat.st_size}}"
+        key = f"{split}|{max_len}|{sp_path.name}|{int(stat.st_mtime)}|{stat.st_size}"
         digest = hashlib.sha1(key.encode()).hexdigest()[:12]
-        return CACHE_DIR / f"wmt14_de_en_{split}_{digest}.pkl"
-    
+        return CACHE_DIR / f"iwslt2017_de_en_{split}_{digest}.pkl"
+
     def __len__(self):
         return len(self.pairs)
 
     def __getitem__(self, i):
         src, tgt = self.pairs[i]
         return {
-            "src" : torch.tensor(src, dtype=torch.long),
-            "tgt_in": torch.tensor([self.bos] + tgt, dtype=torch.long),
-            "tgt_out": torch.tensor(tgt + [self.eos], dtype=torch.long)
+            "src":     torch.tensor(src, dtype=torch.long),
+            "tgt_in":  torch.tensor([self.bos] + tgt, dtype=torch.long),
+            "tgt_out": torch.tensor(tgt + [self.eos], dtype=torch.long),
         }
 
 
 def collate(batch, pad_id=0):
     def pad(seqs):
+        seqs = list(seqs)
         m = max(s.size(0) for s in seqs)
         out = torch.full((len(seqs), m), pad_id, dtype=torch.long)
         for i, s in enumerate(seqs):
@@ -71,7 +77,7 @@ def collate(batch, pad_id=0):
         return out
 
     return {
-        "src": pad(b["src"] for b in batch),
-        "tgt_in": pad(b["tgt_in"] for b in batch),
-        "tgt_out": pad(b["tgt_out"] for b in batch)
+        "src":     pad([b["src"]     for b in batch]),
+        "tgt_in":  pad([b["tgt_in"]  for b in batch]),
+        "tgt_out": pad([b["tgt_out"] for b in batch]),
     }

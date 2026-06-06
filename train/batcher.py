@@ -3,23 +3,34 @@ import torch
 from torch.utils.data import Sampler
 
 class TokenBucketSampler(Sampler):
-    def __init__(self, dataset, tokens_per_batch=25_000, chunk_size=10_000, shuffle=True) -> None:
+    def __init__(self, dataset, tokens_per_batch=25_000, chunk_size=10_000, shuffle=True,
+                 num_replicas=1, rank=0, seed=0) -> None:
         self.dataset = dataset
         self.tokens_per_batch = tokens_per_batch
         self.chunk_size = chunk_size
         self.shuffle = shuffle
+        self.num_replicas = num_replicas
+        self.rank = rank
+        self.seed = seed
+        self.epoch = 0
 
         self.lengths = [
             (i, len(src), len(tgt) + 1)
             for i, (src, tgt) in enumerate(dataset.pairs)
-        ]  
-    
+        ]
+
+    def set_epoch(self, epoch):
+        # Called once per epoch from the training loop so all ranks shuffle
+        # to the same order before sharding.
+        self.epoch = epoch
+
     def _batches(self):
+        rng = random.Random(self.seed + self.epoch)
         sorted_lens = sorted(self.lengths, key=lambda x: max(x[1], x[2]))
         chunks = [sorted_lens[i : i + self.chunk_size]
                     for i in range(0, len(sorted_lens), self.chunk_size)]
         if self.shuffle:
-            random.shuffle(chunks)
+            rng.shuffle(chunks)
 
         batches = []
         for chunk in chunks:
@@ -37,8 +48,10 @@ class TokenBucketSampler(Sampler):
                 batches.append(cur)
 
         if self.shuffle:
-            random.shuffle(batches)
-        return batches
+            rng.shuffle(batches)
+
+        # Shard across ranks: each rank takes every num_replicas-th batch.
+        return batches[self.rank::self.num_replicas]
 
     def __iter__(self):
         for batch in self._batches():
@@ -46,4 +59,4 @@ class TokenBucketSampler(Sampler):
 
     def __len__(self):
         total_tokens = sum(max(s, t) for _, s, t in self.lengths)
-        return max(1, total_tokens // self.tokens_per_batch)
+        return max(1, total_tokens // (self.tokens_per_batch * self.num_replicas))
