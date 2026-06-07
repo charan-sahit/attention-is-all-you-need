@@ -10,8 +10,8 @@ class LabelSmoothingLoss(nn.Module):
         self.confidence = 1.0 - smoothing
 
     def forward(self, logp, target):
-        with torch.nograd():
-            true_dist = torch.full_like(logp, self.smoothing / self.vocab_size - 2)
+        with torch.no_grad():
+            true_dist = torch.full_like(logp, self.smoothing / (self.vocab_size - 2))
             true_dist.scatter_(1, target.unsqueeze(1), self.confidence)
             true_dist[:, self.pad_id] = 0.0
             pad_rows = (target == self.pad_id).unsqueeze(1)
