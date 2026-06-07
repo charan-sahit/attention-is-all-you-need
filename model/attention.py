@@ -37,6 +37,6 @@ class MultiHeadAttention(nn.Module):
         
         x, _ = scaled_dot_product_attention(q, k, v, mask=mask, dropout=self.dropout)
 
-        x = x.transpose(1, 2).contigous().view(B, -1, self.n_heads * self.d_k)
+        x = x.transpose(1, 2).contiguous().view(B, -1, self.n_heads * self.d_k)
         return self.W_o(x)
 
