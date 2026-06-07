@@ -41,8 +41,8 @@ class Transformer(nn.Module):
         return self.encoder(x, src_mask)
     
     def decode(self, memory, src_mask, tgt, tgt_mask):
-        x = self.pos_enc(self.shared_embed(x))
-        return self.decoder(x, memory, src_mask, tgt, tgt_mask)
+        x = self.pos_enc(self.shared_embed(tgt))
+        return self.decoder(x, memory, src_mask, tgt_mask)
 
     def forward(self, src, tgt, src_mask, tgt_mask):
         memory = self.encode(src, src_mask)
