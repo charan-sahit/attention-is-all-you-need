@@ -1,14 +1,13 @@
 #!/bin/bash
 #SBATCH -A research
-#SBATCH -p long
-#SBATCH --qos=medium
+#SBATCH -p short
 #SBATCH --nodelist=gnode073
 #SBATCH -N 1
 #SBATCH -n 1
 #SBATCH --cpus-per-task=12
 #SBATCH --gres=gpu:3
 #SBATCH --mem-per-cpu=4G
-#SBATCH --time=15:00:00
+#SBATCH --time=05:00:00
 #SBATCH --job-name=transformer-iwslt
 #SBATCH --output=logs/train_%j.out
 #SBATCH --error=logs/train_%j.err

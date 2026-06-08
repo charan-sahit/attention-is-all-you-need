@@ -31,7 +31,7 @@ def beam_search(model, src_ids, cfg, device):
         beam_idx = top_idx // cfg.vocab_size
         token_idx = top_idx % cfg.vocab_size
 
-        beams = torch.cat([beams[beam_idx]], token_idx.unsqueeze(1), dim=1)
+        beams = torch.cat([beams[beam_idx], token_idx.unsqueeze(1)], dim=1)
         scores = top_scores
 
         for i in (token_idx == cfg.eos_id).nonzero(as_tuple=True)[0].tolist():

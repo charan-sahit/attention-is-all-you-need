@@ -39,7 +39,7 @@ def average_checkpoints(ckpt_paths, model):
     print(f"Averaging {len(ckpt_paths)} checkpoints...")
     avg=None
     for p in ckpt_paths:
-        state =torch.load(p, map_location="cpu")["model"]
+        state = torch.load(p, map_location="cpu", weights_only=False)["model"]
         if avg is None:
             avg = {k: v.float().clone() for k,v in state.items()}
         else:
